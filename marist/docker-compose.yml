@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: marist-mysql
+    restart: always
+    environment:
+      MYSQL_DATABASE: marist
+      MYSQL_USER: marist_user
+      MYSQL_PASSWORD: ***REDACTED-ROTATED-CREDENTIAL***
+      MYSQL_ROOT_PASSWORD: ***REDACTED-ROTATED-CREDENTIAL***
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:

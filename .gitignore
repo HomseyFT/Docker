@@ -1,0 +1,19 @@
+# Global ignore for container stacks
+
+# Environment / secrets
+.env
+.env.*
+**/.env
+**/.env.*
+**/cert.json
+**/cert*.json
+**/secrets/
+
+# Logs
+**/*.log
+**/*.log.*
+
+# Runtime/state directories (bind-mounted data, caches, etc.)
+**/data/
+**/tmp/
+**/cache/

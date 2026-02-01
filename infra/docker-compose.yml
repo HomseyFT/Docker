@@ -1,0 +1,214 @@
+version: "3.9"
+services:
+  portainer:
+    image: portainer/portainer-ce:2.21.5
+    container_name: portainer
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data:/data
+    networks: [proxy]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.portainer.rule=Host(`portainer.${DOMAIN}`)
+      - traefik.http.services.portainer.loadbalancer.server.port=9000
+    restart: unless-stopped
+
+  dozzle:
+    image: amir20/dozzle:v8.5.2
+    container_name: dozzle
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks: [proxy]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.dozzle.rule=Host(`logs.${DOMAIN}`)
+      - traefik.http.services.dozzle.loadbalancer.server.port=8080
+    restart: unless-stopped
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime-kuma
+    volumes:
+      - ./kuma:/app/data
+    networks: [proxy]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.kuma.rule=Host(`kuma.${DOMAIN}`)
+      - traefik.http.services.kuma.loadbalancer.server.port=3001
+    restart: unless-stopped
+
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:latest
+    container_name: jellyfin
+    networks: [proxy]
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+    volumes:
+      - /home/nathan1/docker/jellyfin/config:/config
+      - /mnt/media/movies:/data/movies
+      - /mnt/media/tv:/data/tv
+    devices:
+      - /dev/dri:/dev/dri
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.jellyfin.rule=Host(`jellyfin.${DOMAIN}`)
+      - traefik.http.services.jellyfin.loadbalancer.server.port=8096
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    networks: [proxy]
+    volumes:
+      - /home/nathan1/docker/ollama/config:/root/.ollama
+    ports:
+      - "127.0.0.1:11434:11434"
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.ollama.rule=Host(`ollama.${DOMAIN}`)
+      - traefik.http.services.ollama.loadbalancer.server.port=11434
+    restart: unless-stopped
+
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: openwebui
+    networks: [proxy]
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+    volumes:
+      - /home/nathan1/docker/openwebui/data:/app/backend/data
+    depends_on:
+      - ollama
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.openwebui.rule=Host(`webui.${DOMAIN}`)
+      - traefik.http.services.openwebui.loadbalancer.server.port=8080
+    restart: unless-stopped
+
+  pihole:
+    image: pihole/pihole:latest
+    container_name: pihole
+    networks: [proxy]
+    environment:
+      - TZ=Etc/UTC
+      - WEBPASSWORD=***REDACTED-ROTATED-CREDENTIAL***
+      - DNSMASQ_LISTENING=all
+    volumes:
+      - /home/nathan1/docker/pihole/config/pihole:/etc/pihole
+      - /home/nathan1/docker/pihole/config/dnsmasq.d:/etc/dnsmasq.d
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.pihole.rule=Host(`pihole.${DOMAIN}`)
+      - traefik.http.services.pihole.loadbalancer.server.port=80
+    restart: unless-stopped
+
+  proton-vpn:
+    image: qmcgaw/gluetun
+    container_name: proton-vpn
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    networks: [proxy]
+    environment:
+      - TZ=Etc/UTC
+      - VPN_SERVICE_PROVIDER=protonvpn
+      - VPN_TYPE=openvpn
+      - OPENVPN_USER=${VPN_USER}
+      - OPENVPN_PASSWORD=${VPN_PASSWORD}
+    volumes:
+      - /home/nathan1/docker/gluetun:/gluetun
+    restart: unless-stopped
+
+  portfolio:
+    image: nginx:alpine
+    container_name: portfolio
+    networks: [proxy]
+    volumes:
+      - /home/nathan1/sites/Basic-Django-Webpage/portfolio/templates/portfolio:/usr/share/nginx/html
+      - /home/nathan1/sites/Basic-Django-Webpage/portfolio/static:/usr/share/nginx/html/static:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.portfolio.rule=Host(`devazul.com`)
+      - traefik.http.services.portfolio.loadbalancer.server.port=80
+    restart: unless-stopped
+
+  dashboard:
+    image: nginx:alpine
+    container_name: dashboard
+    networks: [proxy]
+    volumes:
+      - /home/nathan1/apps/Homelab-Helper-Site/frontend/dist:/usr/share/nginx/html:ro
+      - /home/nathan1/apps/Homelab-Helper-Site/frontend/nginx.dashboard.conf:/etc/nginx/conf.d/default.conf:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.dashboard.rule=Host(`dashboard.${DOMAIN}`)
+      - traefik.http.services.dashboard.loadbalancer.server.port=80
+    restart: unless-stopped
+
+  backend:
+    build: /home/nathan1/apps/Homelab-Helper-Site/backend
+    container_name: homelab-backend
+    networks:
+     - proxy
+     - homelab-helper-site_default
+    environment:
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-***REDACTED-ROTATED-CREDENTIAL***}
+      - DJANGO_DEBUG=0
+      - DJANGO_ALLOWED_HOSTS=dashboard.${DOMAIN},api.${DOMAIN}
+      - DB_NAME=homelab
+      - DB_USER=homelab_user
+      - DB_PASSWORD=***REDACTED-ROTATED-CREDENTIAL***
+      - DB_HOST=homelab-mysql
+      - DB_PORT=3306
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.homelab-api.rule=Host(`dashboard.${DOMAIN}`) && PathPrefix(`/api`)
+      - traefik.http.services.homelab-api.loadbalancer.server.port=8000
+    restart: unless-stopped
+
+  marist-dashboard:
+    image: nginx:stable-alpine
+    container_name: marist-dashboard
+    networks: [proxy]
+    volumes:
+      - /home/nathan1/apps/Marist/frontend/dist:/usr/share/nginx/html:ro
+      - /home/nathan1/apps/Marist/frontend/nginx.dashboard.conf:/etc/nginx/conf.d/default.conf:ro
+    labels:
+      - traefik.enable=true
+      # Frontend at https://marist.dev
+      - traefik.http.routers.marist-frontend.rule=Host(`marist.dev`)
+      - traefik.http.services.marist-frontend.loadbalancer.server.port=80
+    restart: unless-stopped
+
+  marist-backend:
+    build: /home/nathan1/apps/Marist/backend
+    container_name: marist-backend
+    networks:
+      - proxy
+      - marist_default
+    environment:
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-***REDACTED-ROTATED-CREDENTIAL***}
+      - DJANGO_DEBUG=0
+      - DJANGO_ALLOWED_HOSTS=marist.dev
+      - DB_NAME=marist
+      - DB_USER=marist_user
+      - DB_PASSWORD=***REDACTED-ROTATED-CREDENTIAL***
+      - DB_HOST=marist-mysql
+      - DB_PORT=3306
+    labels:
+      - traefik.enable=true
+      # Backend API at https://marist.dev/api/...
+      - traefik.http.routers.marist-api.rule=Host(`marist.dev`) && PathPrefix(`/api`)
+      - traefik.http.services.marist-api.loadbalancer.server.port=8000
+    restart: unless-stopped
+
+networks:
+  proxy:
+    external: true
+  homelab-helper-site_default:
+    external: true
+  marist_default:
+    external: true

@@ -93,7 +93,7 @@ services:
     networks: [proxy]
     environment:
       - TZ=Etc/UTC
-      - WEBPASSWORD=***REDACTED-ROTATED-CREDENTIAL***
+      - WEBPASSWORD=${WEB_PASSWORD}
       - DNSMASQ_LISTENING=all
     volumes:
       - /home/nathan1/docker/pihole/config/pihole:/etc/pihole

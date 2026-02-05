@@ -16,6 +16,7 @@ services:
       - FORGEJO__server__DISABLE_SSH=false
       - FORGEJO__server__START_SSH_SERVER=true
       - FORGEJO__service__DISABLE_REGISTRATION=true
+      - FORGEJO_CUSTOM=/home/nathan1/custom/rofavicon.png
     volumes:
       - /home/nathan1/docker/forgejo/data:/var/lib/gitea
       - /home/nathan1/docker/forgejo/config:/etc/gitea

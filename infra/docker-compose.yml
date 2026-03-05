@@ -217,7 +217,7 @@ services:
       - PUID=1000
       - PGID=1000
     volumes:
-      - /mnt/media/music:/data/music
+      - /mnt/media/music:/music
       - /opt/containers/infra/data/navidrome:/data
     labels:
       - traefik.enable=true

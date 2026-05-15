@@ -1,19 +1,30 @@
-version: "3.9"
+networks:
+  proxy:
+    external: true
+
 services:
-  traefik:
-    image: traefik:v3.1
-    container_name: traefik
-    command:
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --entrypoints.web.address=:80
-      # We let Cloudflare handle TLS. If you want Traefik TLS too, add websecure and certresolver.
-      - --api.dashboard=true
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    container_name: docker-socket-proxy
     networks:
       - proxy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - CONTAINERS=1
+      - SERVICES=1
+      - SWARM=1
+      - TASKS=1
+      - NETWORKS=1
     restart: unless-stopped
-networks:
-  proxy:
-    external: true
+
+  traefik:
+    image: traefik:v3.2
+    container_name: traefik
+    command:
+      - --configfile=/etc/traefik/traefik.yml
+    networks:
+      - proxy
+    volumes:
+      - /opt/containers/reverse-proxy/config/traefik.yml:/etc/traefik/traefik.yml:ro
+    restart: unless-stopped

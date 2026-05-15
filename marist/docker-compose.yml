@@ -8,10 +8,10 @@ services:
     environment:
       MYSQL_DATABASE: marist
       MYSQL_USER: marist_user
-      MYSQL_PASSWORD: ***REDACTED-ROTATED-CREDENTIAL***
-      MYSQL_ROOT_PASSWORD: ***REDACTED-ROTATED-CREDENTIAL***
+      MYSQL_PASSWORD: ${MYSQL_PW}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PW}
     ports:
-      - "3307:3306"
+      - "127.0.0.1:3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
 

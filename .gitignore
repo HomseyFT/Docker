@@ -17,3 +17,6 @@
 **/data/
 **/tmp/
 **/cache/
+
+**/kuma/
+**/pgdata/

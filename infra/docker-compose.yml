@@ -297,4 +297,4 @@ networks:
   homelab-helper-site_default:
     external: true
   marist_default:
-    external: true
+    name: marist_default

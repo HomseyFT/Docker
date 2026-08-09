@@ -3,12 +3,17 @@
 # Environment / secrets
 .env
 .env.*
-!.env.example
 **/.env
 **/.env.*
 **/cert.json
 **/cert*.json
 **/secrets/
+
+# ...but the template is meant to be committed. This negation MUST stay below
+# every .env pattern above — a later match wins, so putting it higher silently
+# re-ignores the file.
+!.env.example
+!**/.env.example
 
 # Application state databases (contain password hashes, session secrets)
 **/*.db

@@ -3,11 +3,26 @@
 # Environment / secrets
 .env
 .env.*
+!.env.example
 **/.env
 **/.env.*
 **/cert.json
 **/cert*.json
 **/secrets/
+
+# Application state databases (contain password hashes, session secrets)
+**/*.db
+**/*.db-shm
+**/*.db-wal
+**/*.sqlite
+**/*.sqlite3
+infra/kuma/
+
+# Editor / shell backups — these have leaked plaintext secrets before
+**/*.bak
+**/*.save
+**/*.orig
+**/*~
 
 # Logs
 **/*.log
@@ -17,6 +32,3 @@
 **/data/
 **/tmp/
 **/cache/
-
-**/kuma/
-**/pgdata/

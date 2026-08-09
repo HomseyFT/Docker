@@ -1,21 +1,15 @@
-version: "3.9"
-
 services:
   forgejo:
     image: codeberg.org/forgejo/forgejo:13-rootless
     container_name: forgejo
     restart: unless-stopped
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.forgejo.rule=Host(`git.devazul.com`)
-      - traefik.http.services.forgejo.loadbalancer.server.port=3000
     environment:
       - USER_UID=1000
       - USER_GID=1000
       - FORGEJO__database__DB_TYPE=sqlite3
-      - FORGEJO__server__DOMAIN=git.devazul.com
-      - FORGEJO__server__ROOT_URL=https://git.devazul.com
-      - FORGEJO__server__SSH_DOMAIN=git.devazul.com
+      - FORGEJO__server__DOMAIN=git.${DOMAIN}
+      - FORGEJO__server__ROOT_URL=https://git.${DOMAIN}/
+      - FORGEJO__server__SSH_DOMAIN=git.${DOMAIN}
       - FORGEJO__server__SSH_PORT=2222
       - FORGEJO__server__DISABLE_SSH=false
       - FORGEJO__server__START_SSH_SERVER=true
@@ -26,8 +20,8 @@ services:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     ports:
-      - "127.0.0.1:3000:3000"   # optional direct HTTP on LAN
-      - "127.0.0.1:2222:22"   # SSH for git over SSH
+      - "3000:3000"   # optional direct HTTP on LAN
+      - "2222:22"   # SSH for git over SSH
     networks:
       - proxy
 

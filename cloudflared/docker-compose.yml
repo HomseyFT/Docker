@@ -1,13 +1,16 @@
 services:
+  # Remotely-managed tunnel: TUNNEL_TOKEN means ingress comes from the
+  # Cloudflare dashboard (Zero Trust -> Networks -> Tunnels -> Public
+  # Hostnames), which is the actual source of truth for every hostname.
+  # config.yml is NOT mounted here on purpose -- it would be silently
+  # ignored in token mode, so it's kept in this repo as a rough reference
+  # only, not as live config.
   cloudflared:
     image: cloudflare/cloudflared:2025.8.1
     container_name: cloudflared
     command: tunnel run
     environment:
       - TUNNEL_TOKEN=${CF_TUNNEL_TOKEN}
-    volumes:
-      - ./config.yml:/etc/cloudflared/config.yml:ro
-      - ./cert.json:/etc/cloudflared/${CF_TUNNEL_ID}.json:ro
     networks:
       - proxy
     restart: unless-stopped

@@ -5,6 +5,7 @@
 .env.*
 **/.env
 **/.env.*
+!**/.env.example
 **/cert.json
 **/cert*.json
 **/secrets/
@@ -37,3 +38,4 @@ infra/kuma/
 **/data/
 **/tmp/
 **/cache/
+infra/pgdata/

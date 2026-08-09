@@ -37,7 +37,7 @@ services:
     restart: unless-stopped
 
   jellyfin:
-    image: lscr.io/linuxserver/jellyfin:latest
+    image: lscr.io/linuxserver/jellyfin@sha256:ed5dc797d12089271e0e61a740cbf9626c4e513400ca2d96c54d35500eeb907c # 10.11.5ubu2404-ls14
     container_name: jellyfin
     networks: [proxy]
     environment:
@@ -57,7 +57,7 @@ services:
     restart: unless-stopped
 
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama@sha256:2c9595c555fd70a28363489ac03bd5bf9e7c5bdf2890373c3a830ffd7252ce6d
     container_name: ollama
     networks: [proxy]
     volumes:
@@ -71,7 +71,7 @@ services:
     restart: unless-stopped
 
   openwebui:
-    image: ghcr.io/open-webui/open-webui:main
+    image: ghcr.io/open-webui/open-webui@sha256:18c1475e636245e2f439b59b4a2b38e1965c881856092d21e5efc38da7e1dac3 # :main
     container_name: openwebui
     networks: [proxy]
     environment:
@@ -87,7 +87,7 @@ services:
     restart: unless-stopped
 
   pihole:
-    image: pihole/pihole:latest
+    image: pihole/pihole@sha256:91dc91ddd413bf461c283204558f8f21839851e9824799075a7ceff7c77eea40 # 2025.11.1
     container_name: pihole
     networks: [proxy]
     environment:
@@ -101,24 +101,6 @@ services:
       - traefik.enable=true
       - traefik.http.routers.pihole.rule=Host(`pihole.${DOMAIN}`)
       - traefik.http.services.pihole.loadbalancer.server.port=80
-    restart: unless-stopped
-
-  proton-vpn:
-    image: qmcgaw/gluetun
-    container_name: proton-vpn
-    cap_add:
-      - NET_ADMIN
-    devices:
-      - /dev/net/tun:/dev/net/tun
-    networks: [proxy]
-    environment:
-      - TZ=Etc/UTC
-      - VPN_SERVICE_PROVIDER=protonvpn
-      - VPN_TYPE=openvpn
-      - OPENVPN_USER=${VPN_USER:?set VPN_USER in infra/.env}
-      - OPENVPN_PASSWORD=${VPN_PASSWORD:?set VPN_PASSWORD in infra/.env}
-    volumes:
-      - /home/nathan1/docker/gluetun:/gluetun
     restart: unless-stopped
 
   portfolio:
@@ -139,8 +121,8 @@ services:
     container_name: dashboard
     networks: [proxy]
     volumes:
-      - /home/nathan1/apps/Homelab-Helper-Site/frontend/dist:/usr/share/nginx/html:ro
-      - /home/nathan1/apps/Homelab-Helper-Site/frontend/nginx.dashboard.conf:/etc/nginx/conf.d/default.conf:ro
+      - /home/nathan1/sites/Homelab-Helper-Site/frontend/dist:/usr/share/nginx/html:ro
+      - /home/nathan1/sites/Homelab-Helper-Site/frontend/nginx.dashboard.conf:/etc/nginx/conf.d/default.conf:ro
     labels:
       - traefik.enable=true
       - traefik.http.routers.dashboard.rule=Host(`dashboard.${DOMAIN}`)
@@ -148,7 +130,7 @@ services:
     restart: unless-stopped
 
   backend:
-    build: /home/nathan1/apps/Homelab-Helper-Site/backend
+    build: /home/nathan1/sites/Homelab-Helper-Site/backend
     container_name: homelab-backend
     networks:
      - proxy
@@ -164,6 +146,10 @@ services:
       - DB_PORT=3306
     labels:
       - traefik.enable=true
+      # Container is on two networks (proxy + homelab-helper-site_default) -
+      # without this, Traefik will pick one at random and may pick the one
+      # it can't actually route to.
+      - traefik.docker.network=proxy
       - traefik.http.routers.homelab-api.rule=Host(`dashboard.${DOMAIN}`) && PathPrefix(`/api`)
       - traefik.http.services.homelab-api.loadbalancer.server.port=8000
     restart: unless-stopped
@@ -173,8 +159,8 @@ services:
     container_name: marist-dashboard
     networks: [proxy]
     volumes:
-      - /home/nathan1/apps/Marist/frontend/dist:/usr/share/nginx/html:ro
-      - /home/nathan1/apps/Marist/frontend/nginx.dashboard.conf:/etc/nginx/conf.d/default.conf:ro
+      - /home/nathan1/sites/Marist/frontend/dist:/usr/share/nginx/html:ro
+      - /home/nathan1/sites/Marist/frontend/nginx.dashboard.conf:/etc/nginx/conf.d/default.conf:ro
     labels:
       - traefik.enable=true
       # Frontend at https://marist.dev
@@ -183,7 +169,7 @@ services:
     restart: unless-stopped
 
   marist-backend:
-    build: /home/nathan1/apps/Marist/backend
+    build: /home/nathan1/sites/Marist/backend
     container_name: marist-backend
     networks:
       - proxy
@@ -199,17 +185,20 @@ services:
       - DB_PORT=3306
     labels:
       - traefik.enable=true
+      # Container is on two networks (proxy + marist_default) - without this,
+      # Traefik will pick one at random and may pick the one it can't route to.
+      - traefik.docker.network=proxy
       # Backend API at https://marist.dev/api/...
       - traefik.http.routers.marist-api.rule=Host(`marist.dev`) && PathPrefix(`/api`)
       - traefik.http.services.marist-api.loadbalancer.server.port=8000
     restart: unless-stopped
 
   navidrome:
-    image: deluan/navidrome:latest
+    image: deluan/navidrome@sha256:a5dce8f33304714dd138e870cca0dcab3d937ca236be1a9f2b97da009d1a0048 # 0.60.3
     container_name: navidrome
     user: 1000:1000
     ports:
-      - "4533:4533"
+      - "127.0.0.1:4533:4533"
     networks: [proxy]
     environment:
       - ND_LOGLEVEL=info
@@ -217,13 +206,73 @@ services:
       - PUID=1000
       - PGID=1000
     volumes:
-      - /mnt/media/music:/data/music
+      - /mnt/media/music:/music
       - /opt/containers/infra/data/navidrome:/data
     labels:
       - traefik.enable=true
       - traefik.http.routers.navidrome.rule=Host(`navidrome.${DOMAIN}`)
       - traefik.http.services.navidrome.loadbalancer.server.port=4533
-    restart: unless-stopped 
+    restart: unless-stopped
+
+  frozen-nginx:
+    image: nginx:alpine
+    container_name: frozen-nginx
+    networks: [proxy]
+    volumes:
+      - /home/nathan1/sites/frozen-caboose/static:/usr/share/nginx/html/static:ro
+      - /home/nathan1/sites/frozen-caboose/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.frozen-web.rule=Host(`frozencaboose.marist.dev`)
+      - traefik.http.services.frozen-web.loadbalancer.server.port=80
+    restart: unless-stopped
+
+  frozen-backend:
+    build: /home/nathan1/sites/frozen-caboose/backend
+    container_name: frozen-backend
+    networks: [proxy]
+    volumes:
+      - /home/nathan1/sites/frozen-caboose/static:/app/staticfiles
+    environment:
+      - DJANGO_SECRET_KEY=${FROZEN_DJANGO_SECRET_KEY:?set FROZEN_DJANGO_SECRET_KEY in infra/.env}
+      - DJANGO_DEBUG=0
+      - DJANGO_ALLOWED_HOSTS=frozencaboose.marist.dev
+      - DB_NAME=frozen_db
+      - DB_USER=frozen_user
+      - DB_PASSWORD=${FROZEN_DB_PASSWORD:?set FROZEN_DB_PASSWORD in infra/.env}
+      - DB_HOST=frozen-db
+      - DB_PORT=5432
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.frozen-api.rule=Host(`frozencaboose.marist.dev`) && PathPrefix(`/api`)
+      - traefik.http.services.frozen-api.loadbalancer.server.port=8000
+    restart: unless-stopped
+
+  frozen-db:
+    image: postgres:15-alpine
+    container_name: frozen-db
+    networks: [proxy]
+    environment:
+      - POSTGRES_USER=frozen_user
+      - POSTGRES_DB=frozen_db
+      - POSTGRES_PASSWORD=${FROZEN_DB_PASSWORD:?set FROZEN_DB_PASSWORD in infra/.env}
+    volumes:
+      - /opt/containers/infra/pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  kevin:
+    image: nginx:alpine
+    container_name: kevin
+    networks: [proxy]
+    volumes:
+      - /home/nathan1/sites/Kevin-Weinman-Site/kevin/templates/kevin:/usr/share/nginx/html:ro
+      - /home/nathan1/sites/Kevin-Weinman-Site/kevin/static/kevin:/usr/share/nginx/static:ro
+      - /home/nathan1/sites/Kevin-Weinman-Site/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.kevin.rule=Host(`kevin-weinman.com`)
+      - traefik.http.services.kevin.loadbalancer.server.port=80
+    restart: unless-stopped
 
   finance-postgres:
     image: postgres:16-alpine

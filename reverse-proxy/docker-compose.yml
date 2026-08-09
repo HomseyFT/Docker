@@ -1,17 +1,37 @@
 services:
+  # Restricts Traefik to a read-only, whitelisted subset of the Docker API
+  # instead of handing it the raw socket (which is effective root on the host).
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    container_name: docker-socket-proxy
+    networks: [proxy]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - CONTAINERS=1
+      - SERVICES=1
+      - SWARM=1
+      - TASKS=1
+      - NETWORKS=1
+    restart: unless-stopped
+
   traefik:
-    image: traefik:v3.1
+    image: traefik:v3.2
     container_name: traefik
     command:
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --entrypoints.web.address=:80
-      # We let Cloudflare handle TLS. If you want Traefik TLS too, add websecure and certresolver.
-      - --api.dashboard=true
+      - --configfile=/etc/traefik/traefik.yml
     networks:
       - proxy
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config/traefik.yml:/etc/traefik/traefik.yml:ro
+    depends_on:
+      - docker-socket-proxy
+    labels:
+      # Self-referential: exposes the dashboard on the docker provider.
+      # Only put this behind Cloudflare Access - api@internal has no auth of its own.
+      - traefik.enable=true
+      - traefik.http.routers.traefik-dashboard.rule=Host(`traefik.${DOMAIN}`)
+      - traefik.http.routers.traefik-dashboard.service=api@internal
     restart: unless-stopped
 networks:
   proxy:

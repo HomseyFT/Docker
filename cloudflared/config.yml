@@ -1,3 +1,9 @@
+# NOT authoritative. The tunnel runs in token mode (see cloudflared/docker-compose.yml)
+# and is not started with --config, so this file is never read by the running
+# container. The real ingress list lives in the Cloudflare dashboard under
+# Zero Trust -> Networks -> Tunnels -> your tunnel -> Public Hostnames, and it
+# has more entries than this file does (e.g. navidrome, dashboard, frozencaboose,
+# kevin-weinman.com). Kept here only as a rough, occasionally-stale reference.
 tunnel: ${CF_TUNNEL_ID}
 credentials-file: /etc/cloudflared/${CF_TUNNEL_ID}.json
 ingress:
@@ -5,8 +11,6 @@ ingress:
     service: http://traefik:80
   - hostname: jellyfin.${DOMAIN}
     service: http://jellyfin:8096
-  - hostname: qb.${DOMAIN}
-    service: http://qbittorrent:8080
   - hostname: kuma.${DOMAIN}
     service: http://uptime-kuma:3001
   - hostname: webui.${DOMAIN}

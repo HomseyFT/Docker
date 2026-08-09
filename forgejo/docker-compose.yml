@@ -20,8 +20,8 @@ services:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     ports:
-      - "3000:3000"   # optional direct HTTP on LAN
-      - "2222:22"   # SSH for git over SSH
+      - "127.0.0.1:3000:3000"   # optional direct HTTP, loopback only - tunnel SSH if you need it remotely
+      - "127.0.0.1:2222:22"     # SSH for git over SSH, loopback only
     networks:
       - proxy
 

@@ -329,6 +329,51 @@ services:
       - traefik.http.services.finance.loadbalancer.server.port=8000
     restart: unless-stopped
 
+  demos-frontend:
+    image: nginx:alpine
+    container_name: demos-frontend
+    networks: [proxy]
+    volumes:
+      - /home/nathan1/sites/Project-Demos/frontend/dist:/usr/share/nginx/html:ro
+      - /home/nathan1/sites/Project-Demos/frontend/nginx.demos.conf:/etc/nginx/conf.d/default.conf:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.demos.rule=Host(`projects.${DOMAIN}`)
+      - traefik.http.services.demos.loadbalancer.server.port=80
+    restart: unless-stopped
+
+  demos-backend:
+    build: /home/nathan1/sites/Project-Demos/backend
+    container_name: demos-backend
+    networks: [proxy]
+    volumes:
+      # Physics-Gen's pure-numpy sim core, read-only - see sim/headless.py for
+      # the render-free entrypoint. Kept as a live mount (not baked into the
+      # image) so the showcased repo stays the single source of truth.
+      - /home/nathan1/projects/Physics-Gen:/physics-gen:ro
+      # docker-outside-of-docker: this is how demos-backend spawns the
+      # hardened, network-disabled per-submission sandbox containers (see
+      # app/sandbox/run_container.py) for the QuinLang and image-codec demos.
+      # A small, first-party service issuing a fixed set of `docker run`
+      # invocations, same trust class this stack already accepts for
+      # portainer/dozzle - not a generic docker-socket-proxy candidate, since
+      # that gates by API category, not by image name, so it wouldn't
+      # actually restrict this to "only these two runner images" either.
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - PYTHONPATH=/physics-gen
+      - ALLOWED_ORIGIN=https://projects.${DOMAIN}
+      - PHYSICS_MAX_SESSIONS=${DEMOS_PHYSICS_MAX_SESSIONS:-20}
+      - PHYSICS_MAX_SESSION_SECONDS=${DEMOS_PHYSICS_MAX_SESSION_SECONDS:-600}
+      - MAX_CONCURRENT_RUNS=${DEMOS_MAX_CONCURRENT_RUNS:-4}
+      - QUINLANG_RUN_TIMEOUT_SECONDS=${DEMOS_QUINLANG_RUN_TIMEOUT_SECONDS:-8}
+      - IMGCODEC_RUN_TIMEOUT_SECONDS=${DEMOS_IMGCODEC_RUN_TIMEOUT_SECONDS:-12}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.demos-api.rule=Host(`projects.${DOMAIN}`) && PathPrefix(`/api`)
+      - traefik.http.services.demos-api.loadbalancer.server.port=8000
+    restart: unless-stopped
+
 networks:
   proxy:
     external: true

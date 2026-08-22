@@ -225,6 +225,61 @@ services:
       - traefik.http.services.navidrome.loadbalancer.server.port=4533
     restart: unless-stopped 
 
+  finance-postgres:
+    image: postgres:16-alpine
+    container_name: finance-postgres
+    networks: [finance]
+    environment:
+      - POSTGRES_DB=finance
+      - POSTGRES_USER=finance_user
+      - POSTGRES_PASSWORD=${FINANCE_DB_PASSWORD:?set FINANCE_DB_PASSWORD in infra/.env}
+    volumes:
+      - /home/nathan1/docker/finance/pgdata:/var/lib/postgresql/data
+    # Not on the proxy network and no published port: nothing outside this
+    # app has any reason to reach the transaction store.
+    restart: unless-stopped
+
+  finance:
+    build:
+      context: /home/nathan1/apps/Finance
+      dockerfile: backend/Dockerfile
+    container_name: finance
+    networks:
+      - proxy
+      - finance
+    depends_on:
+      - finance-postgres
+    environment:
+      - DJANGO_SECRET_KEY=${FINANCE_DJANGO_SECRET_KEY:?set FINANCE_DJANGO_SECRET_KEY in infra/.env}
+      - DJANGO_DEBUG=0
+      - DJANGO_ALLOWED_HOSTS=finance.${DOMAIN},localhost,127.0.0.1
+      - DB_NAME=finance
+      - DB_USER=finance_user
+      - DB_PASSWORD=${FINANCE_DB_PASSWORD:?set FINANCE_DB_PASSWORD in infra/.env}
+      - DB_HOST=finance-postgres
+      - DB_PORT=5432
+      - TZ=America/New_York
+      - STATEMENT_ARCHIVE_DIR=/app/statements
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=${FINANCE_OLLAMA_MODEL:-llama3.1:8b}
+      - NTFY_URL=${FINANCE_NTFY_URL:-}
+      - NTFY_TOPIC=${FINANCE_NTFY_TOPIC:-}
+    volumes:
+      # Archived statements live on the host so they survive image rebuilds.
+      # They are what makes the transaction table reproducible from raw inputs.
+      - /home/nathan1/docker/finance/statements:/app/statements
+    labels:
+      # Traefik routes this on the internal network only. Unlike every other
+      # service here, there is deliberately NO Cloudflare tunnel entry and no
+      # public DNS record for finance.${DOMAIN} -- reach it over LAN or
+      # Tailscale. A misconfigured route here exposes two years of bank
+      # transactions rather than a CPU graph.
+      - traefik.enable=true
+      - traefik.http.routers.finance.rule=Host(`finance.${DOMAIN}`)
+      - traefik.http.routers.finance.entrypoints=web
+      - traefik.http.services.finance.loadbalancer.server.port=8000
+    restart: unless-stopped
+
 networks:
   proxy:
     external: true
@@ -232,3 +287,7 @@ networks:
     external: true
   marist_default:
     external: true
+  # Private network for the finance app and its database. Not external: it is
+  # created and owned by this stack, and nothing else joins it.
+  finance:
+    driver: bridge

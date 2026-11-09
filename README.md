@@ -15,6 +15,7 @@ internet through a Cloudflare Tunnel. Public services live under `*.devazul.com`
 | `homelab-helper-site/` | MySQL backing the Homelab-Helper-Site app |
 | `chess-coach/`  | Chess.com coaching MCP server for Claude (`chess.devazul.com/mcp/<token>`), built from `~/sites/chess-coach-mcp` |
 | `torrent/`      | qBittorrent behind Gluetun (ProtonVPN WireGuard, kill switch, port forwarding). Web UI on the tailnet only |
+| `socks/`        | SockOffice, a static sock-themed office app (`socks.devazul.com`), built from `Socks-Knocked-Off` |
 
 All stacks attach to a shared external Docker network named `proxy`.
 
@@ -37,6 +38,7 @@ cp .env.example homelab-helper-site/.env
 cp .env.example torrent/.env
 cp .env.example forgejo/.env
 cp chess-coach/.env.example chess-coach/.env   # has its own template
+cp .env.example socks/.env
 ```
 
 Fill in the blanks in each, then bring the stacks up — reverse proxy first, then
@@ -50,6 +52,7 @@ docker compose -f homelab-helper-site/docker-compose.yml up -d
 docker compose -f torrent/docker-compose.yml up -d
 docker compose -f forgejo/docker-compose.yml up -d
 docker compose -f chess-coach/docker-compose.yml up -d
+docker compose -f socks/docker-compose.yml up -d --build
 docker compose -f cloudflared/docker-compose.yml up -d
 ```
 

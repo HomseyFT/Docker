@@ -1,0 +1,14 @@
+services:
+  sock-office:
+    build: /home/nathan1/sites/Socks-Knocked-Off
+    container_name: sock-office
+    networks: [proxy]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.sock-office.rule=Host(`socks.${DOMAIN:?set DOMAIN in socks/.env}`)
+      - traefik.http.services.sock-office.loadbalancer.server.port=80
+    restart: unless-stopped
+
+networks:
+  proxy:
+    external: true

@@ -1,0 +1,50 @@
+# Chess.com coaching MCP server (source: /home/nathan1/sites/chess-coach-mcp).
+# Routed by Traefik on the `proxy` network; no host ports are published.
+# Public hostname must also exist in the Cloudflare dashboard (Zero Trust ->
+# Networks -> Tunnels -> Public Hostnames) pointing at http://traefik:80.
+# Do NOT put Cloudflare Access in front of it: Anthropic's servers can't log in.
+services:
+  chess-coach:
+    build: /home/nathan1/sites/chess-coach-mcp
+    image: chess-coach-mcp:latest
+    container_name: chess-coach
+    restart: unless-stopped
+    environment:
+      - CHESSCOM_USERNAME=${CHESSCOM_USERNAME:?set CHESSCOM_USERNAME in chess-coach/.env}
+      - MCP_TOKEN=${MCP_TOKEN:?set MCP_TOKEN in chess-coach/.env}
+      - CHESSCOM_CONTACT=${CHESSCOM_CONTACT:-}
+      # Behind the tunnel the TCP peer is cloudflared, so the real client IP
+      # comes from Cloudflare's header. Default range is Anthropic's egress.
+      - ALLOWED_CLIENT_CIDRS=${ALLOWED_CLIENT_CIDRS:-160.79.104.0/21}
+      - CLIENT_IP_HEADER=cf-connecting-ip
+      - ENGINE_DEPTH=${ENGINE_DEPTH:-18}
+      - ENGINE_THREADS=${ENGINE_THREADS:-2}
+      - ENGINE_HASH_MB=${ENGINE_HASH_MB:-128}
+      - SYNC_INTERVAL_MINUTES=${SYNC_INTERVAL_MINUTES:-60}
+    volumes:
+      - chess-coach-data:/data
+    networks: [proxy]
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 512m
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.chess-coach.rule=Host(`chess.${DOMAIN:?set DOMAIN in chess-coach/.env}`) && PathPrefix(`/mcp`)
+      - traefik.http.routers.chess-coach.entrypoints=web
+      - traefik.http.services.chess-coach.loadbalancer.server.port=8080
+
+networks:
+  proxy:
+    external: true
+
+volumes:
+  chess-coach-data:

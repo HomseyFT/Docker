@@ -1,0 +1,29 @@
+# MySQL backing the Homelab-Helper-Site app. homelab-backend (defined in
+# infra/) joins this stack's default network and connects by container name.
+#
+# The directory name must stay "homelab-helper-site": Compose derives the
+# project name from it, and that is what names the existing volume
+# (homelab-helper-site_mysql_data) and network (homelab-helper-site_default).
+services:
+  db:
+    image: mysql:8.0
+    container_name: homelab-mysql
+    restart: always
+    environment:
+      MYSQL_DATABASE: homelab
+      MYSQL_USER: homelab_user
+      # Same password as HOMELAB_DB_PASSWORD in infra/.env — homelab-backend
+      # connects with it. Different variable name because Compose reads a
+      # separate .env per stack directory; keep the two values in sync.
+      MYSQL_PASSWORD: ${MYSQL_PW:?set MYSQL_PW in homelab-helper-site/.env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PW:?set MYSQL_ROOT_PW in homelab-helper-site/.env}
+    ports:
+      # Loopback only. This box has a public IPv6 address and no firewall in
+      # front of it, so a bare "3306:3306" publishes the database to the
+      # internet. Marist uses 3307 so both can coexist.
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:

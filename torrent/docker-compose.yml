@@ -1,0 +1,58 @@
+# qBittorrent behind Gluetun (ProtonVPN over WireGuard).
+#
+# qbittorrent has no network of its own: network_mode "service:gluetun" puts it
+# inside gluetun's network namespace, so the only route out of the container is
+# the VPN tunnel. Gluetun's built-in firewall drops everything else, so if the
+# tunnel goes down torrent traffic stops rather than falling back to the ISP.
+#
+# Web UI: published on loopback only and exposed to the tailnet with
+# `tailscale serve` (see README), so it is reachable from your own devices
+# anywhere and from nothing else. Because qbittorrent shares gluetun's
+# namespace, the port mapping lives on gluetun.
+services:
+  gluetun:
+    image: qmcgaw/gluetun@sha256:e10584de1f82d8999e5e6c3111901d9d56a2eed21151fb96af060f390bbdfba8 # v3.40
+    container_name: gluetun
+    cap_add: [NET_ADMIN]
+    devices: [/dev/net/tun:/dev/net/tun]
+    ports:
+      # Same port inside and out: qBittorrent validates the Host header
+      # including the port and rejects a mismatch with 401.
+      - "127.0.0.1:8081:8081"
+    environment:
+      - TZ=${TZ:-America/New_York}
+      - VPN_SERVICE_PROVIDER=protonvpn
+      - VPN_TYPE=wireguard
+      - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIVATE_KEY:?set WIREGUARD_PRIVATE_KEY in torrent/.env}
+      - SERVER_COUNTRIES=${VPN_SERVER_COUNTRIES:-Netherlands,Switzerland,Iceland}
+      # ProtonVPN forwards an inbound port via NAT-PMP; without it qBittorrent
+      # can only make outbound peer connections and speeds suffer. When the
+      # port changes, tell qBittorrent through its local API. That call works
+      # unauthenticated only because qBittorrent.conf sets LocalHostAuth=false,
+      # which is safe here: "localhost" is this shared namespace and nothing
+      # else lives in it.
+      - VPN_PORT_FORWARDING=on
+      - VPN_PORT_FORWARDING_UP_COMMAND=/bin/sh -c 'wget -qO- --retry-connrefused --post-data "json={\"listen_port\":{{PORTS}}}" http://127.0.0.1:8081/api/v2/app/setPreferences'
+      # Gluetun's firewall also blocks inbound; open the web UI port to it.
+      - FIREWALL_INPUT_PORTS=8081
+      - HEALTH_VPN_DURATION_INITIAL=30s
+    restart: unless-stopped
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent@sha256:7034f73a3c6fa4ea40fd67df462939d1665d765231b572523921c98c2db5362e # 5.1.2
+    container_name: qbittorrent
+    network_mode: "service:gluetun"
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ:-America/New_York}
+      - WEBUI_PORT=8081
+    volumes:
+      - /home/nathan1/docker/qbittorrent/config:/config
+      # One mount for all of /mnt/media so "move on complete" from downloads/
+      # into movies/ or tv/ is a rename, not a copy across mount points.
+      - /mnt/media:/media
+    restart: unless-stopped

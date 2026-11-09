@@ -12,6 +12,7 @@ internet through a Cloudflare Tunnel. Public services live under `*.devazul.com`
 | `infra/`        | Portainer, Dozzle, Uptime Kuma, Jellyfin, Navidrome, Ollama + Open WebUI, Pi-hole, Gluetun/ProtonVPN, the portfolio site, and the Homelab-Helper + Marist app containers |
 | `forgejo/`      | Forgejo git hosting (`git.devazul.com`, SSH on `:2222`) |
 | `marist/`       | MySQL backing the Marist app |
+| `socks/`        | SockOffice, a static sock-themed office app (`socks.devazul.com`), built from `Socks-Knocked-Off` |
 
 All stacks attach to a shared external Docker network named `proxy`.
 
@@ -31,6 +32,7 @@ cp .env.example infra/.env
 cp .env.example cloudflared/.env
 cp .env.example marist/.env
 cp .env.example forgejo/.env
+cp .env.example socks/.env
 ```
 
 Fill in the blanks in each, then bring the stacks up — reverse proxy first, then
@@ -41,6 +43,7 @@ docker compose -f reverse-proxy/docker-compose.yml up -d
 docker compose -f infra/docker-compose.yml up -d
 docker compose -f marist/docker-compose.yml up -d
 docker compose -f forgejo/docker-compose.yml up -d
+docker compose -f socks/docker-compose.yml up -d --build
 docker compose -f cloudflared/docker-compose.yml up -d
 ```
 

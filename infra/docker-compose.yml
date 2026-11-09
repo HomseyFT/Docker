@@ -241,7 +241,7 @@ services:
 
   finance:
     build:
-      context: /home/nathan1/apps/Finance
+      context: /home/nathan1/sites/Finance
       dockerfile: backend/Dockerfile
     container_name: finance
     networks:
